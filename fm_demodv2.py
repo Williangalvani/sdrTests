@@ -12,6 +12,9 @@ import time
 from pysoundcard import Stream
 
 
+
+# TODO implement deemphasis filter, and implement stereo!
+
 fc = 95.7e6
 rs = 2.4e6
 gain = 40
@@ -55,8 +58,8 @@ class Demodulator(threading.Thread):
 
     rawData = Queue()
     running = True
-    filterB1 = signal.firwin(12,2 * 100e3/rs)
-    filterB2 = signal.firwin(12, 2 * 16e3/rs/10)
+    filterB1 = signal.firwin(5,2 * 100e3/rs)
+    filterB2 = signal.firwin(5, 2 * 16e3/rs/10)
 
     def __init__(self, soundplayer):
         super(Demodulator, self).__init__()
