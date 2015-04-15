@@ -9,7 +9,7 @@ import threading
 from scikits.audiolab import play
 from numpy import max as npmax
 import time
-
+from pysoundcard import Stream
 
 
 fc = 95.7e6
@@ -23,27 +23,33 @@ sdr.rs = rs
 sdr.fc = fc
 sdr.gain = gain
 
+def chunks(l, n):
+    n = max(1, n)
+    return [l[i:i + n] for i in range(0, len(l), n)]
 
 
 class SoundPlayer(threading.Thread):
     soundCache = Queue()
     running = True
     max = 0
+    block_length = 2048
+    s = Stream(sample_rate=rs/N1/N2, block_length=block_length)
+    s.start()
+
 
     def run(self):
+        s = self.s
         while self.running:
             if not self.soundCache.empty():
                 samples = self.soundCache.get()
-                if not self.max:
-                    self.max = npmax(abs(samples), axis=0)
-                samples /= self.max
                 try:
-                    play(samples, fs=rs/N1/N2)
+                    for n in chunks(samples, self.block_length):
+                        s.write(n)
                 except:
                     print("error")
             else:
                 time.sleep(0.001)
-
+        s.stop()
 
 class Demodulator(threading.Thread):
 
@@ -64,17 +70,15 @@ class Demodulator(threading.Thread):
         zb2 = signal.convolve(zdis, self.filterB2)
         zn2 = downsample(zb2, N2)
 
-        #self.soundplayer.soundCache.put(zn2)
+        self.soundplayer.soundCache.put(zn2)
 
 
     def run(self):
         while self.running:
             if not self.rawData.empty():
-                print(self.rawData.qsize())
                 self.decode(self.rawData.get())
             else:
                 time.sleep(0.001)
-                #print("demodulator idle")
 
 
 
