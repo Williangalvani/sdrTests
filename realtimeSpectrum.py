@@ -28,11 +28,13 @@ def main():
     filter = signal.firwin(5, 2* array([99.5,100.5])/sdr.rs,pass_zero=False)
 
 
+
     mpl.figure()
     for i in range(100):
         print('Testing spectrum plotting...')
         mpl.clf()
-        psd = mpl.psd(sdr.read_samples(256*1024), NFFT=1024, Fc=sdr.fc/1e6, Fs=sdr.rs/1e6)
+        signal2 = convolve(sdr.read_samples(256*1024),filter)
+        psd = mpl.psd(signal2, NFFT=1024, Fc=sdr.fc/1e6, Fs=sdr.rs/1e6)
 
         mpl.pause(0.001)
         #mpl.plot(sdr.read_samples(256*1024))
