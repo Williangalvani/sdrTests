@@ -6,11 +6,12 @@ from Lab6.ssd import downsample
 from Lab6.lab6 import discrim
 from Queue import Queue
 import threading
-from scikits.audiolab import play
-from numpy import max as npmax
+from numpy import cos
+
 import time
 from pysoundcard import Stream
-
+from math import *
+import pylab as mpl
 
 
 # TODO implement deemphasis filter, and implement stereo!
@@ -25,6 +26,9 @@ sdr.DEFAULT_ASYNC_BUF_NUMBER = 16
 sdr.rs = rs
 sdr.fc = fc
 sdr.gain = gain
+
+
+
 
 def chunks(l, n):
     n = max(1, n)
@@ -54,12 +58,23 @@ class SoundPlayer(threading.Thread):
                 time.sleep(0.001)
         s.stop()
 
+#@limit_calls(1)
+def plotpsd(zdis):
+    mpl.clf()
+    mpl.psd(zdis, NFFT=1024, Fc=0, Fs=48e3)
+    mpl.pause(0.0001)
+    mpl.show(block=False)
+
 class Demodulator(threading.Thread):
 
     rawData = Queue()
     running = True
-    filterB1 = signal.firwin(5,2 * 100e3/rs)
-    filterB2 = signal.firwin(5, 2 * 16e3/rs/10)
+    butterB1 = signal.butter(4, 2 * 100e3/rs, 'low')
+    butterB2 = signal.butter(4, 2 * 16e3/(rs/N1), 'low')
+    f3 = 1/(2*pi*75e-6)
+    a1 = exp(-2*pi*f3/(rs/N1/N2))
+
+    pll = cos()
 
     def __init__(self, soundplayer):
         super(Demodulator, self).__init__()
@@ -67,13 +82,36 @@ class Demodulator(threading.Thread):
 
     def decode(self, samples):
         x = samples
-        yb1 = signal.convolve(x, self.filterB1)
+        #yb1 = signal.convolve(x, self.filterB1)
+        yb1 = signal.lfilter(self.butterB1[0],self.butterB1[1],x)
         yn1 = downsample(yb1, N1)
         zdis = discrim(yn1)
-        zb2 = signal.convolve(zdis, self.filterB2)
+        #zb2 = signal.convolve(zdis, self.filterB2)
+        zb2 = signal.lfilter(self.butterB2[0],self.butterB2[1],zdis)
         zn2 = downsample(zb2, N2)
+        a1 = self.a1
+        deemp = signal.lfilter([1 -a1],[1,-a1],zn2)
+        plotpsd(zn2)
 
-        self.soundplayer.soundCache.put(zn2)
+        ##### second channel
+
+
+
+
+
+
+
+
+
+
+
+
+        self.soundplayer.soundCache.put(deemp)
+
+
+
+
+
 
 
     def run(self):
